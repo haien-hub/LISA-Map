@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>图4-2 2023年中国城市OISS空间集聚LISA图</title>
+
+<!-- GitHub可稳定访问的Leaflet CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* 全局重置：消除浏览器差异 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Times New Roman", serif;
+    background-color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 10px;
+}
+
+/* 地图容器：精准10cm×8cm（学术规范） */
+#map-container {
+    width: 378px;   /* 10cm = 10×37.8px */
+    height: 302px;  /* 8cm = 8×37.8px */
+    position: relative;
+    border: 1px solid #000;
+    background-color: #ffffff;
+    overflow: hidden; /* 防止元素溢出 */
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    background-color: #f9f9f9;
+}
+
+/* 标题：居中固定 */
+.map-title {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #000;
+    z-index: 1000;
+    line-height: 1;
+}
+
+/* 指北针：右上角无重叠 */
+.north-arrow {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 9pt;
+    text-align: center;
+    background-color: #ffffff;
+    border: 1px solid #000;
+    z-index: 1000;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+}
+
+/* 比例尺：左下角固定 */
+.scale-bar {
+    position: absolute;
+    bottom: 40px;
+    left: 8px;
+    font-size: 9pt;
+    background-color: #ffffff;
+    padding: 2px 5px;
+    border: 1px solid #000;
+    z-index: 1000;
+}
+
+.scale-line {
+    height: 1.5px;
+    background-color: black;
+    margin-bottom: 2px;
+    width: 70px;
+}
+
+/* 图例：底部居中，适配小尺寸 */
+.legend {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    background: white;
+    padding: 3px 5px;
+    font-size: 9pt;
+    border: 1px solid #000;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+}
+
+.legend-title {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+}
+
+.legend-color {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border: 0.5px solid #000;
+    opacity: 0.8;
+}
+
+/* 控件组：左侧精简排列 */
+.ctrl-group {
+    position: absolute;
+    top: 35px;
+    left: 8px;
+    z-index: 1000;
+}
+
+.zoom-btn {
+    background-color: white;
+    color: #000;
+    border: 1px solid #000;
+    width: 22px;
+    height: 22px;
+    font-size: 12pt;
+    font-weight: bold;
+    cursor: pointer;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.control-btn {
+    background-color: white;
+    color: #000;
+    border: 1px solid #000;
+    padding: 2px 5px;
+    font-size: 9pt;
+    cursor: pointer;
+    display: block;
+    margin-top: 2px;
+    width: 66px;
+    text-align: center;
+}
+
+/* 城市标签：防重叠 */
+.city-label {
+    pointer-events: none !important;
+    font-size: 8pt !important;
+    text-shadow: 0.5px 0.5px 1px #fff !important;
+}
+
+/* 弹窗样式：学术简洁 */
+.leaflet-popup-content {
+    font-size: 9pt;
+    font-family: "Times New Roman", serif;
+}
+.leaflet-popup-content-wrapper {
+    border: 1px solid #000;
+    border-radius: 0;
+}
+</style>
+</head>
+
+<body>
+<div id="map-container">
+    <div class="map-title">2023年中国城市OISS空间集聚LISA图</div>
+    <div id="map"></div>
+    
+    <!-- 指北针 -->
+    <div class="north-arrow">↑<br>北</div>
+    
+    <!-- 比例尺 -->
+    <div class="scale-bar">
+        <div class="scale-line"></div>
+        500 km
+    </div>
+    
+    <!-- 图例 -->
+    <div class="legend">
+        <div class="legend-title">图例</div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #d62728;"></span>
+            <span>高-高</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #1f77b4;"></span>
+            <span>低-低</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #ff97c1;"></span>
+            <span>高-低</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #2ca02c;"></span>
+            <span>低-高</span>
+        </div>
+    </div>
+    
+    <!-- 控件组 -->
+    <div class="ctrl-group">
+        <button class="zoom-btn" id="zoom-in">+</button>
+        <button class="zoom-btn" id="zoom-out">-</button>
+        <button class="control-btn" id="reset-view">重置视图</button>
+        <button class="control-btn" id="toggle-labels">显示标签</button>
+    </div>
+</div>
+
+<!-- GitHub稳定访问的Leaflet JS -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// 初始化地图：中国居中，适配GitHub Pages
+var map = L.map('map', {
+    zoomControl: false,
+    attributionControl: false,
+    minZoom: 3,
+    maxZoom: 7,
+    crs: L.CRS.EPSG4326
+}).setView([35, 105], 4);
+
+// GitHub稳定访问的底图（OpenStreetMap无标注版）
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '' // 隐藏底图标注，适配学术图
+}).addTo(map);
+
+// LISA集聚颜色映射（学术规范色值）
+const lisaColorMap = {
+    "H-H": "#d62728", // 高-高：红色
+    "L-L": "#1f77b4", // 低-低：深蓝色
+    "H-L": "#ff97c1", // 高-低：粉色
+    "L-H": "#2ca02c", // 低-高：浅绿色
+    "default": "#f0f0f0" // 不显著：浅灰色
+};
+
+// 兜底示例数据（GeoJSON加载失败时使用）
+const fullSampleData = {
+    "type": "FeatureCollection",
+    "features": [
+        // 长三角（高-高）
+        { "type": "Feature", "properties": { "name": "上海市", "LISA_cluster": "H-H" }, "geometry": { "type": "Polygon", "coordinates": [[[120.5, 30.5], [122.0, 30.5], [122.0, 32.0], [120.5, 32.0], [120.5, 30.5]]] } },
+        { "type": "Feature", "properties": { "name": "苏州市", "LISA_cluster": "H-H" }, "geometry": { "type": "Polygon", "coordinates": [[[119.5, 30.5], [121.0, 30.5], [121.0, 32.0], [119.5, 32.0], [119.5, 30.5]]] } },
+        // 珠三角（高-高）
+        { "type": "Feature", "properties": { "name": "深圳市", "LISA_cluster": "H-H" }, "geometry": { "type": "Polygon", "coordinates": [[[113.5, 22.0], [114.5, 22.0], [114.5, 23.0], [113.5, 23.0], [113.5, 22.0]]] } },
+        // 成渝（高-高）
+        { "type": "Feature", "properties": { "name": "成都市", "LISA_cluster": "H-H" }, "geometry": { "type": "Polygon", "coordinates": [[[103.0, 30.0], [105.0, 30.0], [105.0, 31.5], [103.0, 31.5], [103.0, 30.0]]] } },
+        // 西北（低-低）
+        { "type": "Feature", "properties": { "name": "陇南市", "LISA_cluster": "L-L" }, "geometry": { "type": "Polygon", "coordinates": [[[103.5, 32.5], [106.5, 32.5], [106.5, 34.5], [103.5, 34.5], [103.5, 32.5]]] } },
+        // 中部（高-低）
+        { "type": "Feature", "properties": { "name": "滁州市", "LISA_cluster": "H-L" }, "geometry": { "type": "Polygon", "coordinates": [[[117.0, 31.5], [119.0, 31.5], [119.0, 33.0], [117.0, 33.0], [117.0, 31.5]]] } },
+        // 西南（低-高）
+        { "type": "Feature", "properties": { "name": "绵阳市", "LISA_cluster": "L-H" }, "geometry": { "type": "Polygon", "coordinates": [[[103.5, 30.5], [105.5, 30.5], [105.5, 32.5], [103.5, 32.5], [103.5, 30.5]]] } }
+    ]
+};
+
+// 全局变量
+var geoJsonLayer = null;
+var labelsVisible = false;
+var labelLayers = [];
+
+// ========== 核心：加载GitHub上的GeoJSON（带超时兜底） ==========
+function loadMapData() {
+    // 5秒超时兜底：避免GitHub加载慢导致页面空白
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("GeoJSON加载超时")), 5000);
+    });
+
+    // 优先加载GitHub仓库中的GeoJSON（相对路径）
+    Promise.race([
+        fetch("./中国_市.geojson") // GitHub同目录下的GeoJSON文件
+            .then(res => {
+                if (!res.ok) throw new Error("GeoJSON文件不存在");
+                return res.json();
+            }),
+        timeoutPromise
+    ])
+    .then(localData => {
+        // 兼容数据格式：补充缺失的LISA字段/城市名称
+        localData.features.forEach(feature => {
+            feature.properties.LISA_cluster = feature.properties.LISA_cluster || "default";
+            feature.properties.name = feature.properties.name || feature.properties.市 || "未知城市";
+        });
+        renderMap(localData); // 渲染真实数据
+    })
+    .catch(error => {
+        console.warn("加载真实GeoJSON失败，使用示例数据：", error);
+        renderMap(fullSampleData); // 兜底渲染示例数据
+    });
+}
+
+// ========== 渲染地图核心逻辑 ==========
+function renderMap(data) {
+    // 清除旧图层，避免重复渲染
+    if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+    labelLayers.forEach(item => map.removeLayer(item.layer));
+    labelLayers = [];
+
+    // 绘制LISA集聚图层
+    geoJsonLayer = L.geoJSON(data, {
+        style: function(feature) {
+            const clusterType = feature.properties.LISA_cluster || "default";
+            return {
+                color: "#000",        // 边界黑色（学术规范）
+                weight: 0.8,          // 边界线宽0.8pt
+                fillColor: lisaColorMap[clusterType],
+                fillOpacity: 0.8,     // 填充透明度80%
+                opacity: 1            // 边界不透明
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const cityName = feature.properties.name;
+            const clusterType = feature.properties.LISA_cluster || "default";
+            // 集聚类型文字映射
+            const clusterText = {
+                "H-H": "高-高集聚", "L-L": "低-低集聚",
+                "H-L": "高-低集聚", "L-H": "低-高集聚",
+                "default": "不显著"
+            }[clusterType];
+
+            // 点击弹窗：显示学术信息
+            layer.bindPopup(`
+                <div style="font-weight: bold;">${cityName}</div>
+                <div>LISA集聚类型：${clusterText}</div>
+            `);
+
+            // 鼠标悬停效果：加粗边界
+            layer.on('mouseover', () => {
+                layer.setStyle({ weight: 1.5, fillOpacity: 0.9 });
+            });
+            layer.on('mouseout', () => {
+                layer.setStyle({ weight: 0.8, fillOpacity: 0.8 });
+            });
+
+            // 创建城市标签（默认隐藏）
+            const center = layer.getBounds().getCenter();
+            const label = L.marker(center, {
+                icon: L.divIcon({
+                    className: 'city-label',
+                    html: `<div>${cityName}</div>`,
+                    iconSize: [60, 12]
+                }),
+                interactive: false
+            });
+            labelLayers.push({ layer: label });
+        }
+    }).addTo(map);
+}
+
+// ========== 控件交互逻辑 ==========
+// 缩放按钮
+document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn());
+document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
+
+// 重置视图
+document.getElementById('reset-view').addEventListener('click', () => {
+    map.setView([35, 105], 4); // 回到中国居中视图
+});
+
+// 标签切换
+document.getElementById('toggle-labels').addEventListener('click', function() {
+    labelsVisible = !labelsVisible;
+    labelLayers.forEach(item => {
+        if (labelsVisible) item.layer.addTo(map);
+        else map.removeLayer(item.layer);
+    });
+    this.textContent = labelsVisible ? "隐藏标签" : "显示标签";
+});
+
+// 键盘快捷键（便捷操作）
+document.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case '+': map.zoomIn(); break;
+        case '-': map.zoomOut(); break;
+        case 'r': map.setView([35, 105], 4); break;
+        case 'l': document.getElementById('toggle-labels').click(); break;
+    }
+});
+
+// ========== 初始化加载数据 ==========
+loadMapData();
+</script>
+</body>
+</html>
